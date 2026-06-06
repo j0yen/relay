@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.4.0 — relay-intake
+
+Turns a messy, spoken-style helper intake story into a structured, privacy-respecting
+case record plus a next-actions checklist — offline, so nothing about a vulnerable person
+leaves the machine. New `relay-intake` crate wired as `relay intake`.
+
+- `CaseRecord` schema: consented summary, needs (links to `relay-match`), risk/urgency
+  flags, demographics-only-if-volunteered, barriers, timeline, and a `redactions` list.
+  `consent` field defaults to most restrictive; export refuses fields above consent level.
+- `Structurer` trait (`LocalLlmStructurer` + `MockStructurer`): free-text story →
+  `CaseRecord` + `Vec<NextAction>`; unknown resource references are rejected, not dropped.
+- PII minimization (deterministic, rule-based): regex redaction pass for emails, phone
+  numbers, and SSNs; `--minimized` output contains none of the flagged identifiers.
+- Graceful degrade: if local model unreachable, produces minimal record from rule-based
+  layer (timeline + redactions) with a clear "LLM unavailable, partial record" notice.
+- ACs 1–7 deterministic, verified green (18 tests). AC8 (structuring quality vs. real
+  qwen on 10 sample stories) deferred to manual hand-verification.
+
 ## v0.3.0 — relay-letters
 
 Added `relay-letters` crate to the workspace: deterministic template engine for
