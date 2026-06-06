@@ -1,0 +1,119 @@
+{
+  "organizations": [
+    {
+      "id": "org-001",
+      "name": "Community Food Bank",
+      "description": "Emergency food assistance for all residents.",
+      "url": "https://cfb.example.org"
+    },
+    {
+      "id": "org-002",
+      "name": "City Shelter Services",
+      "description": "Emergency and transitional housing.",
+      "url": "https://shelter.example.org"
+    },
+    {
+      "id": "org-003",
+      "name": "Legal Aid Society",
+      "description": "Free legal services for low-income residents.",
+      "url": "https://legal.example.org"
+    }
+  ],
+  "services": [
+    {
+      "id": "svc-001",
+      "organization_id": "org-001",
+      "name": "Emergency Food Pantry",
+      "description": "Walk-in food pantry open weekdays.",
+      "status": "active",
+      "taxonomy_ids": "food",
+      "eligibility": "",
+      "languages": "en,es",
+      "url": "https://cfb.example.org/pantry",
+      "phones": [{"number": "555-100-0001"}]
+    },
+    {
+      "id": "svc-002",
+      "organization_id": "org-001",
+      "name": "Senior Meals Program",
+      "description": "Hot meals delivered to seniors.",
+      "status": "active",
+      "taxonomy_ids": "food",
+      "eligibility": "60+",
+      "languages": "en",
+      "url": null,
+      "phones": []
+    },
+    {
+      "id": "svc-003",
+      "organization_id": "org-002",
+      "name": "Emergency Shelter",
+      "description": "Emergency overnight shelter.",
+      "status": "active",
+      "taxonomy_ids": "shelter",
+      "eligibility": "adults18plus",
+      "languages": "en,fr",
+      "url": null,
+      "phones": [{"number": "555-200-0001"}]
+    },
+    {
+      "id": "svc-004",
+      "organization_id": "org-003",
+      "name": "Housing Legal Clinic",
+      "description": "Legal aid for housing disputes.",
+      "status": "active",
+      "taxonomy_ids": "legal",
+      "eligibility": "",
+      "languages": "en",
+      "url": null,
+      "phones": []
+    },
+    {
+      "id": "svc-005",
+      "organization_id": "org-001",
+      "name": "SNAP Enrollment Help",
+      "description": "Assistance with SNAP applications.",
+      "status": "inactive",
+      "taxonomy_ids": "benefits",
+      "eligibility": "",
+      "languages": "en",
+      "url": null,
+      "phones": []
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc-001",
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "address_1": "100 Main St",
+      "city": "San Francisco",
+      "state_province": "CA",
+      "postal_code": "94102"
+    },
+    {
+      "id": "loc-002",
+      "latitude": 37.7751,
+      "longitude": -122.4190,
+      "address_1": "200 Oak Ave",
+      "city": "San Francisco",
+      "state_province": "CA",
+      "postal_code": "94102"
+    },
+    {
+      "id": "loc-003",
+      "latitude": 37.8044,
+      "longitude": -122.2711,
+      "address_1": "50 Court St",
+      "city": "Oakland",
+      "state_province": "CA",
+      "postal_code": "94612"
+    }
+  ],
+  "services_at_location": [
+    {"service_id": "svc-001", "location_id": "loc-001"},
+    {"service_id": "svc-002", "location_id": "loc-001"},
+    {"service_id": "svc-003", "location_id": "loc-002"},
+    {"service_id": "svc-004", "location_id": "loc-003"}
+  ]
+}

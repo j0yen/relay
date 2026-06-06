@@ -1,0 +1,34 @@
+{
+  "organizations": [
+    {"id": "org-a", "name": "Acme Org", "description": null, "url": null}
+  ],
+  "services": [
+    {
+      "id": "svc-a1",
+      "organization_id": "org-a",
+      "name": "Food Pantry",
+      "status": "active",
+      "taxonomy_ids": "food",
+      "eligibility": "",
+      "languages": "en",
+      "phones": [{"number": "555-0001"}]
+    },
+    {
+      "id": "svc-a2",
+      "organization_id": "org-a",
+      "name": "Food Pantry",
+      "status": "active",
+      "taxonomy_ids": "food",
+      "eligibility": "",
+      "languages": "en",
+      "phones": [{"number": "555-0002"}]
+    }
+  ],
+  "locations": [
+    {"id": "loc-a", "latitude": 40.7128, "longitude": -74.0060, "address_1": "1 Broadway", "city": "New York", "state_province": "NY", "postal_code": "10004"}
+  ],
+  "services_at_location": [
+    {"service_id": "svc-a1", "location_id": "loc-a"},
+    {"service_id": "svc-a2", "location_id": "loc-a"}
+  ]
+}

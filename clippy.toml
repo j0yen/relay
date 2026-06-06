@@ -1,0 +1,7 @@
+avoid-breaking-exported-api = false
+msrv = "1.85"
+cognitive-complexity-threshold = 20
+type-complexity-threshold = 200
+too-many-arguments-threshold = 6
+too-many-lines-threshold = 100
+trivial-copy-size-limit = 16

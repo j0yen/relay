@@ -1,0 +1,6 @@
+org_name,service_name,taxonomy,latitude,longitude,address,phone,url,hours,eligibility,languages,description,external_id
+Community Food Bank,Emergency Food Pantry,food,37.7749,-122.4194,"100 Main St, San Francisco CA 94102",555-100-0001,https://cfb.example.org,"Mon-Fri 9am-5pm",,en;es,Walk-in food pantry open weekdays.,ext-001
+City Shelter Services,Emergency Shelter,shelter,37.7751,-122.4190,"200 Oak Ave, San Francisco CA 94102",555-200-0001,,24/7,adults18plus,en;fr,Emergency overnight shelter.,ext-002
+Legal Aid Society,Housing Legal Clinic,legal,37.8044,-122.2711,"50 Court St, Oakland CA 94612",,,Mon-Thu 10am-4pm,,en,Free legal aid for housing disputes.,ext-003
+,Bad Row No Org,food,0,0,,,,,,en,Should be skipped,ext-bad
+Community Food Bank,Emergency Food Pantry,food,37.7749,-122.4194,"100 Main St, San Francisco CA 94102",555-100-0001,https://cfb.example.org,"Mon-Fri 9am-5pm",,en;es,Duplicate row should be deduped.,ext-dup

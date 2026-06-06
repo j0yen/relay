@@ -1,0 +1,23 @@
+[package]
+name = "relay-directory"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+description = "relay-directory — normalized human-services resource directory: schema, ingest, dedup, and query."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+tracing = "0.1"
+csv = "1"
+
+[dev-dependencies]
+tempfile = "3"
