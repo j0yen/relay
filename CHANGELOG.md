@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 — 2026-06-06
+
+Workspace clippy gate (`clippy -D warnings`) now passes for `relay-match`. The
+test module adopts the `relay-directory` convention — a module-level
+`#![allow(...)]` for the test-permissible lints (unwrap/expect/panic/indexing)
+plus the fixture-builder ergonomic lints (too_many_arguments, similar_names,
+redundant_clone, needless_pass_by_value) — and a stray `to_string` on `&&str`
+is fixed. No behavior change; all 9 deterministic tests (ACs 1-7) stay green.
+AC8 (live-model extraction quality vs. qwen2.5:3b) remains deferred per PRD.
+
 ## v0.4.0 — relay-intake
 
 Turns a messy, spoken-style helper intake story into a structured, privacy-respecting
