@@ -1,9 +1,10 @@
 //! `relay` — CLI frontend for the relay human-services workspace.
 //!
 //! # Subcommands
-//! - `relay directory import <file>`  — ingest an HSDS-JSON or CSV file
-//! - `relay directory query ...`      — query the local directory
-//! - `relay directory stats`          — print store statistics
+//! - `relay directory import <file>`     — ingest an HSDS-JSON or CSV file
+//! - `relay directory query ...`         — query the local directory
+//! - `relay directory stats`             — print store statistics
+//! - `relay match --situation <text> ...`— match free-text situation to resources
 
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
@@ -14,6 +15,11 @@ use relay_directory::{
     schema::{EligibilityFlag, GeoPoint, ServiceType},
     store::Store,
     DirectoryError,
+};
+use relay_match::{
+    extractor::LocalLlmExtractor,
+    matcher::{Matcher, MatcherConfig},
+    MatchError,
 };
 use std::path::PathBuf;
 use thiserror::Error;
@@ -45,6 +51,7 @@ fn main() {
 fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Commands::Directory(dir_cmd) => run_directory(dir_cmd),
+        Commands::Match(match_args) => cmd_match(match_args),
     }
 }
 
@@ -160,6 +167,96 @@ fn cmd_stats() -> Result<(), CliError> {
     Ok(())
 }
 
+// ─── match ────────────────────────────────────────────────────────────────────
+
+fn cmd_match(args: MatchArgs) -> Result<(), CliError> {
+    // Read situation from --situation, a file, or stdin.
+    let situation = if let Some(text) = args.situation {
+        text
+    } else if let Some(path) = args.situation_file {
+        std::fs::read_to_string(&path).map_err(|e| MatchError::Io(e))?
+    } else {
+        use std::io::Read as _;
+        let mut buf = String::new();
+        std::io::stdin().read_to_string(&mut buf).map_err(|e| MatchError::Io(e))?;
+        buf
+    };
+
+    let near = args
+        .near
+        .as_deref()
+        .map(parse_latlng)
+        .transpose()?
+        .and_then(|(lat, lon)| GeoPoint::new(lat, lon));
+
+    let config = MatcherConfig {
+        top_n: args.top.unwrap_or(10),
+        near,
+        ..Default::default()
+    };
+
+    let store = open_store(args.db.as_deref())?;
+    let matcher = Matcher::with_config(&store, config);
+
+    // Try local LLM first; it will fail-fast (stub) and fall back to keyword.
+    let llm_extractor = LocalLlmExtractor::default();
+    let (matches, used_fallback) = matcher.match_situation(&situation, &llm_extractor)?;
+
+    if used_fallback {
+        eprintln!(
+            "notice: local model unavailable — using keyword extraction \
+             (install ollama + qwen2.5:3b for full extraction)"
+        );
+    }
+
+    if matches.is_empty() {
+        println!("no matches found");
+        return Ok(());
+    }
+
+    if args.json {
+        let values: Vec<serde_json::Value> = matches
+            .iter()
+            .map(|m| {
+                let mut v =
+                    serde_json::to_value(&m.resource).unwrap_or(serde_json::Value::Null);
+                if let Some(obj) = v.as_object_mut() {
+                    obj.insert("score".to_owned(), serde_json::json!(m.total_score));
+                    obj.insert("why".to_owned(), serde_json::json!(m.why));
+                    if let Some(d) = m.distance_km {
+                        obj.insert(
+                            "distance_km".to_owned(),
+                            serde_json::Value::Number(
+                                serde_json::Number::from_f64(d)
+                                    .unwrap_or_else(|| serde_json::Number::from(0)),
+                            ),
+                        );
+                    }
+                }
+                v
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&values).unwrap_or_default());
+    } else {
+        for (i, m) in matches.iter().enumerate() {
+            let dist = m
+                .distance_km
+                .map_or_else(String::new, |d| format!(" ({d:.1} km)"));
+            println!(
+                "{}. {}{} — {} [{:.2}]\n   {}",
+                i + 1,
+                m.resource.service_name,
+                dist,
+                m.resource.org_name,
+                m.total_score,
+                m.why,
+            );
+        }
+    }
+
+    Ok(())
+}
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 fn open_store(path: Option<&std::path::Path>) -> Result<Store, CliError> {
@@ -212,6 +309,8 @@ struct Cli {
 enum Commands {
     /// Manage the local resource directory.
     Directory(DirectoryCommand),
+    /// Match a free-text situation description to directory resources.
+    Match(MatchArgs),
 }
 
 #[derive(Parser)]
@@ -228,6 +327,33 @@ enum DirectorySubcommand {
     Query(QueryArgs),
     /// Print store statistics.
     Stats,
+}
+
+#[derive(Parser)]
+struct MatchArgs {
+    /// Free-text situation description (reads from stdin if omitted and no --file).
+    #[arg(long)]
+    situation: Option<String>,
+
+    /// Path to a file containing the situation description.
+    #[arg(long = "file")]
+    situation_file: Option<PathBuf>,
+
+    /// Centre of proximity search as "lat,lon".
+    #[arg(long)]
+    near: Option<String>,
+
+    /// Maximum number of results to return (default: 10).
+    #[arg(long)]
+    top: Option<usize>,
+
+    /// Output results as JSON.
+    #[arg(long)]
+    json: bool,
+
+    /// Path to the store database (defaults to ~/.local/share/relay/directory.db).
+    #[arg(long)]
+    db: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -273,6 +399,8 @@ struct QueryArgs {
 enum CliError {
     #[error(transparent)]
     Directory(#[from] DirectoryError),
+    #[error(transparent)]
+    Match(#[from] MatchError),
     #[error("invalid coordinate: {0}")]
     InvalidCoord(String),
 }

@@ -552,6 +552,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "relay-directory",
+ "relay-match",
  "serde_json",
  "sigpipe",
  "thiserror",
@@ -566,6 +567,19 @@ dependencies = [
  "chrono",
  "csv",
  "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "relay-match"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "relay-directory",
  "serde",
  "serde_json",
  "tempfile",
