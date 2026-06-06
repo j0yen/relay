@@ -2,6 +2,21 @@
 //!
 //! All tests use [`MockExtractor`] or [`FailingExtractor`] — no live LLM, no
 //! network connection, no disk writes outside a `tempfile` in-memory store.
+//!
+//! Test code is held to looser lints than production code (matching the
+//! `relay-directory` convention): panics-on-failure is the expected test idiom,
+//! and the `make_resource` builder takes more than six fixture args by design.
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::too_many_arguments,
+    clippy::similar_names,
+    clippy::redundant_clone,
+    clippy::redundant_closure_for_method_calls,
+    clippy::needless_pass_by_value
+)]
 
 use relay_directory::{
     schema::{EligibilityFlag, GeoPoint, Hours, Provenance, Resource, ServiceType},
@@ -37,7 +52,7 @@ fn make_resource(
         url: None,
         hours: hours.map(|s| Hours(s.to_owned())),
         eligibility,
-        languages: languages.iter().map(|s| s.to_string()).collect(),
+        languages: languages.iter().map(|s| (*s).to_owned()).collect(),
         description: None,
         provenance: Provenance {
             source_id: "test".to_owned(),
