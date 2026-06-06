@@ -39,7 +39,7 @@ pub struct MockExtractor {
 impl MockExtractor {
     /// Create a `MockExtractor` that always returns `needs`.
     #[must_use]
-    pub fn new(needs: Needs) -> Self {
+    pub const fn new(needs: Needs) -> Self {
         Self { needs }
     }
 }
@@ -78,7 +78,7 @@ pub struct KeywordExtractor;
 impl KeywordExtractor {
     /// Create a new `KeywordExtractor`.
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self
     }
 
@@ -86,6 +86,7 @@ impl KeywordExtractor {
     ///
     /// Public so callers can invoke it directly for graceful-degrade fallback.
     #[must_use]
+    #[allow(clippy::unused_self)]
     pub fn extract_from_text(&self, situation_text: &str) -> Needs {
         use relay_directory::schema::ServiceType;
         let lower = situation_text.to_lowercase();

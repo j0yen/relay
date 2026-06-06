@@ -6,6 +6,7 @@
 //! - `relay directory stats`             — print store statistics
 //! - `relay match --situation <text> ...`— match free-text situation to resources
 //! - `relay letter --type <type> --case <file>` — draft a letter from a case record
+//! - `relay intake --story <file|->`     — structure an intake story into a case record
 
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
@@ -22,7 +23,13 @@ use relay_match::{
     matcher::{Matcher, MatcherConfig},
     MatchError,
 };
+use relay_intake::{
+    record::{ConsentLevel, ResourceId},
+    structurer::{MockStructurer, Structurer},
+    IntakeError,
+};
 use relay_letters::{draft, CaseRecord, MockProse, TemplateType};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::FromStr;
 use thiserror::Error;
@@ -56,6 +63,7 @@ fn run(cli: Cli) -> Result<(), CliError> {
         Commands::Directory(dir_cmd) => run_directory(dir_cmd),
         Commands::Match(match_args) => cmd_match(match_args),
         Commands::Letter(letter_cmd) => run_letter(letter_cmd),
+        Commands::Intake(intake_args) => run_intake(intake_args),
     }
 }
 
@@ -105,6 +113,87 @@ fn run_letter(cmd: LetterArgs) -> Result<(), CliError> {
             eprintln!("letter written to {}", path.display());
         }
         None => println!("{text}"),
+    }
+
+    Ok(())
+}
+
+// ─── intake ───────────────────────────────────────────────────────────────────
+
+fn run_intake(args: IntakeArgs) -> Result<(), CliError> {
+    use std::io::Read as _;
+
+    // Read story from file or stdin.
+    let story = if args.story == PathBuf::from("-") {
+        let mut buf = String::new();
+        std::io::stdin().read_to_string(&mut buf)?;
+        buf
+    } else {
+        std::fs::read_to_string(&args.story)?
+    };
+
+    // MockStructurer is the default (no live LLM dep required).
+    let structurer = MockStructurer::new();
+    let known: HashSet<ResourceId> = HashSet::new();
+
+    let (mut record, actions) = structurer.structure(&story, &known)?;
+
+    // Apply minimization if requested.
+    if args.minimized {
+        record = record.minimized(ConsentLevel::FullExport);
+    }
+
+    // Build output value.
+    let output = serde_json::json!({
+        "record": record,
+        "actions": actions,
+    });
+
+    let json_str = serde_json::to_string_pretty(&output)?;
+
+    if let Some(out_path) = args.out {
+        std::fs::write(&out_path, &json_str)?;
+    } else if args.json {
+        println!("{json_str}");
+    } else {
+        // Human-readable summary.
+        println!("=== Intake Record ===");
+        println!("Summary: {}", record.summary);
+        if !record.risk_flags.is_empty() {
+            println!(
+                "Risk flags: {}",
+                record
+                    .risk_flags
+                    .iter()
+                    .map(|f| format!("{f:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+        if !record.barriers.is_empty() {
+            println!(
+                "Barriers: {}",
+                record
+                    .barriers
+                    .iter()
+                    .map(|b| format!("{b:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+        if !record.redactions.is_empty() {
+            println!("PII detected: {} item(s) flagged", record.redactions.len());
+        }
+        if record.partial {
+            println!(
+                "Notice: {}",
+                record.partial_notice.as_deref().unwrap_or("partial record")
+            );
+        }
+        println!("Next actions ({}):", actions.len());
+        for (i, a) in actions.iter().enumerate() {
+            println!("  {}. [{}] {}", i + 1, a.owner, a.what);
+        }
     }
 
     Ok(())
@@ -221,11 +310,11 @@ fn cmd_match(args: MatchArgs) -> Result<(), CliError> {
     let situation = if let Some(text) = args.situation {
         text
     } else if let Some(path) = args.situation_file {
-        std::fs::read_to_string(&path).map_err(|e| MatchError::Io(e))?
+        std::fs::read_to_string(&path).map_err(MatchError::Io)?
     } else {
         use std::io::Read as _;
         let mut buf = String::new();
-        std::io::stdin().read_to_string(&mut buf).map_err(|e| MatchError::Io(e))?;
+        std::io::stdin().read_to_string(&mut buf).map_err(MatchError::Io)?;
         buf
     };
 
@@ -243,11 +332,11 @@ fn cmd_match(args: MatchArgs) -> Result<(), CliError> {
     };
 
     let store = open_store(args.db.as_deref())?;
-    let matcher = Matcher::with_config(&store, config);
+    let resource_matcher = Matcher::with_config(&store, config);
 
     // Try local LLM first; it will fail-fast (stub) and fall back to keyword.
     let llm_extractor = LocalLlmExtractor::default();
-    let (matches, used_fallback) = matcher.match_situation(&situation, &llm_extractor)?;
+    let (matches, used_fallback) = resource_matcher.match_situation(&situation, &llm_extractor)?;
 
     if used_fallback {
         eprintln!(
@@ -360,6 +449,8 @@ enum Commands {
     Match(MatchArgs),
     /// Draft a letter from a case record.
     Letter(LetterArgs),
+    /// Structure an intake story into a case record and next-action list.
+    Intake(IntakeArgs),
 }
 
 #[derive(Parser)]
@@ -466,6 +557,24 @@ impl LetterArgs {
     }
 }
 
+// ─── intake args ──────────────────────────────────────────────────────────────
+
+#[derive(Parser)]
+struct IntakeArgs {
+    /// Path to the intake story file, or `-` to read from stdin.
+    #[arg(long)]
+    story: PathBuf,
+    /// Output as JSON.
+    #[arg(long)]
+    json: bool,
+    /// Apply PII redaction pass and suppress fields above consent level.
+    #[arg(long)]
+    minimized: bool,
+    /// Write output to this path instead of stdout.
+    #[arg(long)]
+    out: Option<PathBuf>,
+}
+
 // ─── Error type ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Error)]
@@ -474,6 +583,10 @@ enum CliError {
     Directory(#[from] DirectoryError),
     #[error(transparent)]
     Match(#[from] MatchError),
+    #[error(transparent)]
+    Intake(#[from] IntakeError),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
     #[error("invalid coordinate: {0}")]
     InvalidCoord(String),
     #[error("letter error: {0}")]

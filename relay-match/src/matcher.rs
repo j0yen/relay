@@ -54,11 +54,14 @@ impl FactorScores {
     #[must_use]
     pub fn total(&self) -> f64 {
         let prox = self.proximity.unwrap_or(0.5); // neutral if unknown
-        self.service_overlap * W_SERVICE
-            + self.eligibility_compat * W_ELIG
-            + prox * W_PROX
-            + self.hours * W_HOURS
-            + self.language * W_LANG
+        #[allow(clippy::suboptimal_flops)]
+        {
+            self.service_overlap * W_SERVICE
+                + self.eligibility_compat * W_ELIG
+                + prox * W_PROX
+                + self.hours * W_HOURS
+                + self.language * W_LANG
+        }
     }
 
     /// Name of the top-contributing factor (for the "why" string).
@@ -145,7 +148,7 @@ impl<'s> Matcher<'s> {
 
     /// Create a new `Matcher` with explicit config.
     #[must_use]
-    pub fn with_config(store: &'s Store, config: MatcherConfig) -> Self {
+    pub const fn with_config(store: &'s Store, config: MatcherConfig) -> Self {
         Self { store, config }
     }
 
@@ -287,6 +290,8 @@ fn service_overlap_score(resource: &Resource, needs: &Needs) -> f64 {
         .count();
 
     // Exact match gets full overlap; partial gets proportional credit.
+    // usize → f64: precision loss is acceptable for scoring (values ≤ ~1000).
+    #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
     let fraction = matching as f64 / needs.service_types.len() as f64;
 
     // Bonus if the resource exactly covers all needed types.
@@ -337,8 +342,7 @@ fn is_incompatible(flag: &EligibilityFlag, signals: &[EligibilityFlag]) -> bool 
         | EligibilityFlag::Adults18Plus
         | EligibilityFlag::Seniors60Plus
         | EligibilityFlag::LocalResidentOnly => !matches_any,
-        EligibilityFlag::Other(_) => false, // unknown flags: assume compatible
-        _ => false,
+        EligibilityFlag::Other(_) | _ => false, // unknown flags: assume compatible
     }
 }
 
@@ -347,7 +351,8 @@ fn proximity_score(dist_km: f64) -> f64 {
     // Logistic decay: score = 1 / (1 + e^(k * (d - half)))
     // where k = ln(9) / half so that score(half) = 0.1 ... use simpler form:
     // score = 1 / (1 + (d / half)^2) — gives 1.0 at d=0, 0.5 at d=half.
-    1.0 / (1.0 + (dist_km / PROX_HALF_KM).powi(2))
+    #[allow(clippy::suboptimal_flops)]
+    { 1.0 / (1.0 + (dist_km / PROX_HALF_KM).powi(2)) }
 }
 
 /// Language match: 1.0 if a needed language is listed, 0.5 if unknown, 0.0 only

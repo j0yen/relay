@@ -42,14 +42,14 @@ impl QueryBuilder {
 
     /// Centre the proximity filter on `point`.
     #[must_use]
-    pub fn near(mut self, point: GeoPoint) -> Self {
+    pub const fn near(mut self, point: GeoPoint) -> Self {
         self.near = Some(point);
         self
     }
 
     /// Apply a radius filter (only meaningful when [`near`](Self::near) is also set).
     #[must_use]
-    pub fn radius_km(mut self, km: f64) -> Self {
+    pub const fn radius_km(mut self, km: f64) -> Self {
         self.radius_km = Some(km);
         self
     }

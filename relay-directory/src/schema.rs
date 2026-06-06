@@ -1,6 +1,7 @@
-//! Normalised `Resource` model — a single on-device record for a human-services
-//! resource, collapsing the HSDS core entities (organization / service /
-//! location / service_at_location) into what a matcher needs.
+//! Normalised `Resource` model for the relay workspace.
+//!
+//! Collapses the HSDS core entities (organization / service /
+//! location / `service_at_location`) into what a matcher needs.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -80,10 +81,11 @@ impl GeoPoint {
 
     /// Haversine distance to another point in kilometres.
     #[must_use]
-    pub fn distance_km(self, other: GeoPoint) -> f64 {
+    pub fn distance_km(self, other: Self) -> f64 {
         const R: f64 = 6_371.0;
         let d_lat = (other.lat - self.lat).to_radians();
         let d_lon = (other.lon - self.lon).to_radians();
+        #[allow(clippy::suboptimal_flops)]
         let a = (d_lat / 2.0).sin().powi(2)
             + self.lat.to_radians().cos()
                 * other.lat.to_radians().cos()
@@ -194,6 +196,9 @@ impl Resource {
     #[must_use]
     pub fn dedup_key(org_name: &str, service_name: &str, location: Option<GeoPoint>) -> String {
         use std::fmt::Write as _;
+        // FNV-1a-64 constants — declared before any statements to satisfy clippy::items_after_statements.
+        const OFFSET: u64 = 14_695_981_039_346_656_037;
+        const PRIME: u64 = 1_099_511_628_211;
         let mut buf = String::new();
         let _ = write!(buf, "{org_name}\0{service_name}\0");
         match location {
@@ -203,17 +208,17 @@ impl Resource {
             None => buf.push_str("no_loc\0no_loc"),
         }
         // Simple FNV-1a-64 — no crypto needed for a local dedup key.
-        const OFFSET: u64 = 14_695_981_039_346_656_037;
-        const PRIME: u64 = 1_099_511_628_211;
         let hash = buf.bytes().fold(OFFSET, |acc, b| {
-            acc.wrapping_mul(PRIME) ^ u64(b)
+            acc.wrapping_mul(PRIME) ^ byte_to_u64(b)
         });
         format!("{hash:016x}")
     }
 }
 
-/// Extend `u8` → `u64` without the `as_conversions` clippy lint.
+/// Extend `u8` → `u64`; u8→u64 is always lossless.
 #[inline]
-const fn u64(b: u8) -> u64 {
-    b as u64
+const fn byte_to_u64(b: u8) -> u64 {
+    // u8 fits in u64: this cast is always lossless.
+    #[allow(clippy::as_conversions)]
+    { b as u64 }
 }

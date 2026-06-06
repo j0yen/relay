@@ -1,4 +1,4 @@
-//! SQLite-backed persistent store for [`Resource`] records.
+//! `SQLite`-backed persistent store for [`Resource`] records.
 //!
 //! The store lives at `~/.local/share/relay/directory.db` by default.
 //! All mutations use upsert semantics keyed on [`Resource::id`].
@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 use tracing::debug;
 
-/// Opened, migrated SQLite store for relay resources.
+/// Opened, migrated `SQLite` store for relay resources.
 pub struct Store {
     conn: Connection,
 }
@@ -22,7 +22,7 @@ impl Store {
     /// Applies schema migrations automatically.
     ///
     /// # Errors
-    /// Returns [`DirectoryError`] on SQLite failure.
+    /// Returns [`DirectoryError`] on `SQLite` failure.
     pub fn open(path: &Path) -> Result<Self, DirectoryError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -38,7 +38,7 @@ impl Store {
     /// Open a store at the default path (`~/.local/share/relay/directory.db`).
     ///
     /// # Errors
-    /// Returns [`DirectoryError`] if the path cannot be determined or SQLite fails.
+    /// Returns [`DirectoryError`] if the path cannot be determined or `SQLite` fails.
     pub fn open_default() -> Result<Self, DirectoryError> {
         let path = default_db_path();
         Self::open(&path)
@@ -47,7 +47,7 @@ impl Store {
     /// Open an in-memory store (useful for tests).
     ///
     /// # Errors
-    /// Returns [`DirectoryError`] on SQLite failure.
+    /// Returns [`DirectoryError`] on `SQLite` failure.
     pub fn open_in_memory() -> Result<Self, DirectoryError> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch("PRAGMA journal_mode=MEMORY; PRAGMA foreign_keys=ON;")?;
@@ -85,7 +85,7 @@ impl Store {
     /// Upsert a single resource.  Existing records are overwritten on conflict.
     ///
     /// # Errors
-    /// Returns [`DirectoryError`] on SQLite failure.
+    /// Returns [`DirectoryError`] on `SQLite` failure.
     pub fn upsert(&self, r: &Resource) -> Result<(), DirectoryError> {
         let service_types = serde_json::to_string(&r.service_types)?;
         let eligibility = serde_json::to_string(&r.eligibility)?;
@@ -134,7 +134,7 @@ impl Store {
     /// Upsert a batch of resources.
     ///
     /// # Errors
-    /// Returns [`DirectoryError`] on the first SQLite failure.
+    /// Returns [`DirectoryError`] on the first `SQLite` failure.
     pub fn upsert_all(&self, resources: &[Resource]) -> Result<(), DirectoryError> {
         for r in resources {
             self.upsert(r)?;
@@ -145,7 +145,7 @@ impl Store {
     /// Total number of resources in the store.
     ///
     /// # Errors
-    /// Returns [`DirectoryError`] on SQLite failure.
+    /// Returns [`DirectoryError`] on `SQLite` failure.
     pub fn count(&self) -> Result<u64, DirectoryError> {
         let n: i64 =
             self.conn.query_row("SELECT COUNT(*) FROM resources", [], |row| row.get(0))?;
@@ -155,7 +155,7 @@ impl Store {
     /// Fetch all resources (for query layer use).
     ///
     /// # Errors
-    /// Returns [`DirectoryError`] on SQLite failure.
+    /// Returns [`DirectoryError`] on `SQLite` failure.
     pub fn all(&self) -> Result<Vec<Resource>, DirectoryError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, org_name, service_name, service_types,
@@ -201,8 +201,7 @@ fn row_to_resource(row: &rusqlite::Row<'_>) -> rusqlite::Result<Resource> {
     let hours = hours_str.map(Hours);
 
     let ingested_at = chrono::DateTime::parse_from_rfc3339(&ingested_at_str)
-        .map(|dt| dt.with_timezone(&chrono::Utc))
-        .unwrap_or_else(|_| chrono::Utc::now());
+        .map_or_else(|_| chrono::Utc::now(), |dt| dt.with_timezone(&chrono::Utc));
 
     Ok(Resource {
         id,
@@ -227,7 +226,6 @@ fn row_to_resource(row: &rusqlite::Row<'_>) -> rusqlite::Result<Resource> {
 
 fn default_db_path() -> PathBuf {
     let base = std::env::var("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/tmp"));
+        .map_or_else(|_| PathBuf::from("/tmp"), PathBuf::from);
     base.join(".local/share/relay/directory.db")
 }

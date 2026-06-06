@@ -308,6 +308,7 @@ impl CsvIngestor {
 }
 
 impl Ingestor for CsvIngestor {
+    #[allow(clippy::too_many_lines)]
     fn ingest(&self, data: &[u8]) -> Result<IngestReport, DirectoryError> {
         let mut rdr = csv::ReaderBuilder::new()
             .has_headers(true)
@@ -316,7 +317,7 @@ impl Ingestor for CsvIngestor {
 
         let headers: Vec<String> = {
             let h = rdr.headers()?;
-            h.iter().map(|s| s.to_lowercase()).collect()
+            h.iter().map(str::to_lowercase).collect()
         };
 
         let col = |name: &str| -> Option<usize> { headers.iter().position(|h| h == name) };

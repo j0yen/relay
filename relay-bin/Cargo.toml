@@ -18,6 +18,7 @@ path = "src/main.rs"
 relay-directory = { path = "../relay-directory" }
 relay-match = { path = "../relay-match" }
 relay-letters = { path = "../relay-letters" }
+relay-intake = { path = "../relay-intake" }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
 thiserror = "1"
