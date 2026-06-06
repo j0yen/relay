@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.0 — relay-letters
+
+Added `relay-letters` crate to the workspace: deterministic template engine for
+four letter types (referral, benefits-appeal, intake-summary, support-letter),
+`Prose` trait with `MockProse` + `InjectingMockProse` impls, entity-diff post-check
+safety gate, advice-phrase linter, and `DRAFT` header/footer guardrails. The
+`relay letter` subcommand is wired into the relay-bin CLI. Uses a local
+`CaseRecord` mirror (seam comment in `case_record.rs`) pending relay-intake landing.
+19 tests pass; clippy clean on the new crate. No auto-send; no legal/medical advice.
+
 ## v0.2.0 — relay match
 
 Turn a free-text situation ("she's couch-surfing with two kids and her benefits

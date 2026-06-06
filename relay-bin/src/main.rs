@@ -5,6 +5,7 @@
 //! - `relay directory query ...`         — query the local directory
 //! - `relay directory stats`             — print store statistics
 //! - `relay match --situation <text> ...`— match free-text situation to resources
+//! - `relay letter --type <type> --case <file>` — draft a letter from a case record
 
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
@@ -21,7 +22,9 @@ use relay_match::{
     matcher::{Matcher, MatcherConfig},
     MatchError,
 };
+use relay_letters::{draft, CaseRecord, MockProse, TemplateType};
 use std::path::PathBuf;
+use std::str::FromStr;
 use thiserror::Error;
 
 fn main() {
@@ -52,6 +55,7 @@ fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Commands::Directory(dir_cmd) => run_directory(dir_cmd),
         Commands::Match(match_args) => cmd_match(match_args),
+        Commands::Letter(letter_cmd) => run_letter(letter_cmd),
     }
 }
 
@@ -61,6 +65,49 @@ fn run_directory(cmd: DirectoryCommand) -> Result<(), CliError> {
         DirectorySubcommand::Query(ref args) => cmd_query(args),
         DirectorySubcommand::Stats => cmd_stats(),
     }
+}
+
+// ─── letter ───────────────────────────────────────────────────────────────────
+
+fn run_letter(cmd: LetterArgs) -> Result<(), CliError> {
+    let template_type = TemplateType::from_str(&cmd.letter_type)
+        .map_err(|e| CliError::Letter(relay_letters::LetterError::ProseError { message: e }))?;
+
+    let json_bytes = std::fs::read(cmd.case_file()).map_err(CliError::Io)?;
+    let record: CaseRecord =
+        serde_json::from_slice(&json_bytes).map_err(|e| CliError::Letter(relay_letters::LetterError::ProseError {
+            message: format!("invalid case JSON: {e}"),
+        }))?;
+
+    let prose = MockProse;
+    let output = draft(&record, template_type, &prose, cmd.smooth)
+        .map_err(CliError::Letter)?;
+
+    // Warn about missing slots
+    if !output.missing_slots.is_empty() {
+        eprintln!(
+            "warning: {} required slot(s) missing: {}",
+            output.missing_slots.len(),
+            output.missing_slots.join(", ")
+        );
+    }
+
+    // Warn about advice phrases
+    let flags = relay_letters::guardrails::lint_advice_phrases(&output.text);
+    if !flags.is_empty() {
+        eprintln!("warning: advice phrases flagged for review: {}", flags.join("; "));
+    }
+
+    let text = &output.text;
+    match cmd.out {
+        Some(path) => {
+            std::fs::write(&path, text.as_bytes()).map_err(CliError::Io)?;
+            eprintln!("letter written to {}", path.display());
+        }
+        None => println!("{text}"),
+    }
+
+    Ok(())
 }
 
 // ─── import ──────────────────────────────────────────────────────────────────
@@ -311,6 +358,8 @@ enum Commands {
     Directory(DirectoryCommand),
     /// Match a free-text situation description to directory resources.
     Match(MatchArgs),
+    /// Draft a letter from a case record.
+    Letter(LetterArgs),
 }
 
 #[derive(Parser)]
@@ -393,6 +442,30 @@ struct QueryArgs {
     db: Option<PathBuf>,
 }
 
+// ─── letter args ──────────────────────────────────────────────────────────────
+
+#[derive(Parser)]
+struct LetterArgs {
+    /// Template type: referral, benefits-appeal, intake-summary, support-letter.
+    #[arg(long = "type", value_name = "TYPE")]
+    letter_type: String,
+    /// Path to the case record JSON file.
+    #[arg(long)]
+    case: PathBuf,
+    /// Apply prose smoothing (uses `MockProse` in this build; `LocalLlm` in future).
+    #[arg(long)]
+    smooth: bool,
+    /// Write the letter to this file instead of stdout.
+    #[arg(long)]
+    out: Option<PathBuf>,
+}
+
+impl LetterArgs {
+    const fn case_file(&self) -> &PathBuf {
+        &self.case
+    }
+}
+
 // ─── Error type ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Error)]
@@ -403,4 +476,8 @@ enum CliError {
     Match(#[from] MatchError),
     #[error("invalid coordinate: {0}")]
     InvalidCoord(String),
+    #[error("letter error: {0}")]
+    Letter(relay_letters::LetterError),
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
 }

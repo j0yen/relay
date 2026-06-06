@@ -552,6 +552,7 @@ version = "0.2.0"
 dependencies = [
  "clap",
  "relay-directory",
+ "relay-letters",
  "relay-match",
  "serde_json",
  "sigpipe",
@@ -572,6 +573,16 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "relay-letters"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

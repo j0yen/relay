@@ -1,5 +1,5 @@
 [workspace]
-members = ["relay-directory", "relay-bin", "relay-match"]
+members = ["relay-directory", "relay-bin", "relay-match", "relay-letters"]
 resolver = "2"
 
 [workspace.package]
