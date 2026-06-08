@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.0 — 2026-06-08
+
+A helper doesn't think in taxonomy codes — they hear "she's couch-surfing with
+two kids and her benefits got cut off." `relay-match` turns that free-text
+situation into structured needs and ranks the `relay-directory` resources that
+fit — by service match, eligibility, and proximity. The needs-extraction uses
+the **local** LLM (offline, private); the ranking is deterministic and is the
+testable core.
+
 ## v0.5.0 — 2026-06-06
 
 Workspace clippy gate (`clippy -D warnings`) now passes for `relay-match`. The
