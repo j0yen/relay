@@ -1,0 +1,113 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "intent_slug": "relay-directory",
+  "prd_source": "/home/jsy/wintermute/autobuilder-cloud/PRD-relay-directory.md",
+  "root_motivation": "A frontline social-services helper (rural clinic, mutual-aid site) needs an on-device, offline-capable resource directory to answer 'what services exist near here for this need' without reliable internet or budget for cloud APIs. The homeward ingest→normalize→query pattern is proven and directly reusable pointed at HSDS human-services data.",
+  "user_persona": "A frontline helper (social worker, community health worker, mutual-aid volunteer) running the relay binary on a laptop or Raspberry Pi at a clinic, community centre, or pop-up site — possibly with no internet. They type 'relay directory query' to look up referrals during a client session.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing",
+    "lower_is_better": false,
+    "harness_command": "cargo test --workspace 2>&1 | grep -c 'test .* ok'",
+    "target": 8
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "cargo build --release produces a relay binary; relay directory --help lists import, query, stats subcommands.",
+      "test": "cargo build --release && ./target/release/relay directory --help | grep -E 'import|query|stats'"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "Importing a fixture HSDS-JSON export yields expected normalized Resource rows (golden test: known input → known schema output).",
+      "test": "tests/ac_tests.rs::ac2_hsds_json_golden_ingest"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "CSV ingestor parses a 211-style sheet into the same schema; malformed rows are skipped with a counted warning, never panic.",
+      "test": "tests/ac_tests.rs::ac3_csv_ingestor_golden_ingest + ac3_csv_malformed_rows_never_panic"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "Dedup: two source records for the same org+service+location collapse to one Resource (deterministic, tested on fixture with known duplicates).",
+      "test": "tests/ac_tests.rs::ac4_dedup_same_org_service_location + ac4_dedup_fn_deterministic"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "query --need food --near <lat,lon> --radius-km 10 returns only food resources within 10km, ordered by distance (golden test on seeded store).",
+      "test": "tests/ac_tests.rs::ac5_proximity_query"
+    },
+    {
+      "id": "AC6",
+      "level": "MUST",
+      "description": "Eligibility filtering: --eligibility under18 excludes resources whose eligibility flags exclude minors (tested on fixtures).",
+      "test": "tests/ac_tests.rs::ac6_eligibility_excludes_non_matching"
+    },
+    {
+      "id": "AC7",
+      "level": "MUST",
+      "description": "Store is durable: import, drop the process, re-open, query — rows persist.",
+      "test": "tests/ac_tests.rs::ac7_store_durability"
+    },
+    {
+      "id": "AC8",
+      "level": "MUST",
+      "description": "SIGPIPE-safe (sigpipe::reset() in main) so relay directory query | head doesn't panic; strict clippy (unwrap/expect/panic = deny) clean.",
+      "test": "cargo clippy --workspace -- -D warnings && grep -r 'sigpipe::reset' relay-bin/src/main.rs"
+    }
+  ],
+  "scope": [
+    "relay-directory lib crate: normalized Resource model (HSDS-aligned), Ingestor trait, HsdsJsonIngestor, CsvIngestor, dedup by org+service+location, SQLite store (rusqlite bundled), structured query builder with proximity + eligibility filtering",
+    "relay binary (relay-bin): directory import, directory query, directory stats subcommands",
+    "All operations offline-capable — no network calls in core path",
+    "Deterministic dedup using stable source-id hash",
+    "Proximity ranking by Haversine distance"
+  ],
+  "non_goals": [
+    "No real-time sync with live 211 APIs or HSDS cloud endpoints (future crate)",
+    "No LLM-based need extraction in relay-directory itself (that is relay-match)",
+    "No user authentication, multi-tenant, or web service interface",
+    "No full HSDS taxonomy of 2000+ service codes — only the top-level categories needed for matching",
+    "No mobile or WASM target"
+  ],
+  "hard_constraints": {
+    "rust_edition": "2021",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": null,
+    "msrv": "1.85",
+    "additional": {
+      "workspace": "~/wintermute/relay (existing multi-crate workspace)",
+      "no_network_in_tests": "all ACs are deterministic, no network or LLM required",
+      "sigpipe_safe": "sigpipe::reset() in main (memory self_sigpipe_panic_toolkit)"
+    }
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why build a local human-services resource directory?",
+      "a": "A frontline helper can't refer someone to a service they can't find — current directories are scattered PDFs, county sites, and stale 211 spreadsheets."
+    },
+    {
+      "why": 2,
+      "q": "Why local/on-device rather than querying a cloud API?",
+      "a": "A rural clinic or pop-up mutual-aid site has no reliable internet and no cloud budget; the tool must work offline and free."
+    },
+    {
+      "why": 3,
+      "q": "Why HSDS rather than a custom schema?",
+      "a": "Open Referral's HSDS is the established interop standard for 211s and resource directories — real data exports exist to ingest rather than building a toy."
+    }
+  ],
+  "ambiguities_resolved": [
+    {
+      "question": "Should relay-directory be a standalone crate or part of the relay workspace?",
+      "resolution": "Part of the relay workspace (~/wintermute/relay) per the PRD — the relay binary hosts directory subcommands alongside future match/intake/letters commands."
+    }
+  ],
+  "created_at": "2026-06-12T13:52:00Z"
+}

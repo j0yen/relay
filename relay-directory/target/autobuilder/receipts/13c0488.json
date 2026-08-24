@@ -1,0 +1,31 @@
+{
+  "schema": "autobuilder.evidence-pack.v1",
+  "slug": "relay-directory",
+  "iteration": 1,
+  "head_sha": "13c048873760c61183b60cb431ce2d1512065d22",
+  "branch": "main",
+  "hypothesis": "Validate existing relay-directory crate against PRD ACs; add deny.toml; confirm all 8 ACs green.",
+  "gates": {
+    "cargo_build_release": "pass",
+    "cargo_clippy": "pass (0 warnings, -D warnings clean)",
+    "cargo_test": "pass (8/8 acceptance tests in tests/ac_tests.rs)",
+    "cargo_deny_subset": "pass (bans ok, licenses ok, sources ok)",
+    "sigpipe_check": "pass (sigpipe::reset() present in relay-bin/src/main.rs:39)",
+    "cli_help": "pass (relay directory --help lists import, query, stats)"
+  },
+  "ac_passing_count": 8,
+  "ac_total_count": 8,
+  "ac_breakdown": {
+    "AC1": "pass — relay binary built, relay directory --help lists import/query/stats",
+    "AC2": "pass — ac2_hsds_json_golden_ingest: 4 active resources, pantry with Food type",
+    "AC3": "pass — ac3_csv_ingestor_golden_ingest + ac3_csv_malformed_rows_never_panic",
+    "AC4": "pass — ac4_dedup_same_org_service_location + ac4_dedup_fn_deterministic",
+    "AC5": "pass — ac5_proximity_query: food within 1km, ordered by distance",
+    "AC6": "pass — ac6_eligibility_excludes_non_matching: adults-only shelter excluded from under18 query",
+    "AC7": "pass — ac7_store_durability: rows persist across process restart",
+    "AC8": "pass — clippy -D warnings clean; sigpipe::reset() in main"
+  },
+  "verdict": "advance",
+  "concerns": [],
+  "captured_at": "2026-06-12T13:56:00Z"
+}

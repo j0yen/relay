@@ -1,0 +1,2 @@
+sha	quality_score	ac_passing	status	description
+13c0488	103	8	advance	All 8 ACs green; clippy clean; cargo deny pass; deny.toml added
